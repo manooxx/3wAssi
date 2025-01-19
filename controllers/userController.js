@@ -9,37 +9,33 @@ cloudinary.config({
 });
 
 
+const uploadToCloudinary = (buffer) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: "user_uploads" },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve(result.secure_url);
+            }
+        );
+        stream.end(buffer);
+    });
 
+};
 const uploadUser = async (req, res) => {
-    
     try {
         const { name, socialHandle } = req.body;
 
-        // Ensure files are received
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: "No files uploaded" });
         }
 
+     
 
-        // Upload images to Cloudinary and get URLs
-        const imageUrls = await Promise.all(req.files.map(async (file) => {
-            try {
-                const result = await cloudinary.uploader.upload(file.path, {
-                    folder: "user_uploads" // Organize files in Cloudinary
-                });
-                return result.secure_url;
-            } catch (uploadError) {
-                console.error("Cloudinary upload error:", uploadError);
-                throw new Error("Failed to upload image to Cloudinary.");
-            }
-        }));
+        // Upload all files to Cloudinary
+        const imageUrls = await Promise.all(req.files.map(file => uploadToCloudinary(file.buffer)));
 
-        // Ensure name and socialHandle exist
-        if (!name || !socialHandle) {
-            return res.status(400).json({ message: "Name and social handle are required." });
-        }
-
-        // Save user to MongoDB
+        // Save user details in MongoDB
         const newUser = new User({
             name,
             socialHandle,
@@ -58,6 +54,58 @@ const uploadUser = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+
+
+
+// const uploadUser = async (req, res) => {
+    
+//     try {
+//         const { name, socialHandle } = req.body;
+
+//         // Ensure files are received
+//         if (!req.files || req.files.length === 0) {
+//             return res.status(400).json({ message: "No files uploaded" });
+//         }
+
+
+//         // Upload images to Cloudinary and get URLs
+//         const imageUrls = await Promise.all(req.files.map(async (file) => {
+//             try {
+//                 const result = await cloudinary.uploader.upload(file.path, {
+//                     folder: "user_uploads" // Organize files in Cloudinary
+//                 });
+//                 return result.secure_url;
+//             } catch (uploadError) {
+//                 console.error("Cloudinary upload error:", uploadError);
+//                 throw new Error("Failed to upload image to Cloudinary.");
+//             }
+//         }));
+
+//         // Ensure name and socialHandle exist
+//         if (!name || !socialHandle) {
+//             return res.status(400).json({ message: "Name and social handle are required." });
+//         }
+
+//         // Save user to MongoDB
+//         const newUser = new User({
+//             name,
+//             socialHandle,
+//             images: imageUrls
+//         });
+
+//         await newUser.save();
+
+//         res.status(201).json({
+//             message: "User submission successful",
+//             images: imageUrls
+//         });
+
+//     } catch (err) {
+//         console.error("Server error:", err);
+//         res.status(500).json({ message: err.message });
+//     }
+// };
 
 
 const getSubmissions = async (req, res)=>{
