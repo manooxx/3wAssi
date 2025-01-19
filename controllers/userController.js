@@ -1,7 +1,6 @@
 const User = require("../models/user");
 const cloudinary = require("cloudinary").v2;
-const multer = require('multer');
-
+require("dotenv").config();
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -9,35 +8,61 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storage = multer.memoryStorage();
-const upload = multer({storage: storage});
+
+// cloudinary.config({
+//     cloud_name:"detvsglhi",
+//     api_key: 476389823571681,
+//     api_secret:"Bz7qw-SQOSie-TtS-Ev5WmkB8gE",
+// });
+const uploadUser = async (req, res) => {
+    
+    try {
+        const { name, socialHandle } = req.body;
+
+        // Ensure files are received
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: "No files uploaded" });
+        }
 
 
-const uploadUser = async (req, res)=>{
-
-    try{
-        const {name, socialHandle} = req.body;
-        const imageUrls = await Promise.all(req.files.map(async(file)=>{
-            const result = await cloudinary.uploader.upload_stream({
-                resource_type: "auto"
-            }, (error, result)=>{
-                if(error) throw new Error(error.message);
+        // Upload images to Cloudinary and get URLs
+        const imageUrls = await Promise.all(req.files.map(async (file) => {
+            try {
+                const result = await cloudinary.uploader.upload(file.path, {
+                    folder: "user_uploads" // Organize files in Cloudinary
+                });
                 return result.secure_url;
-            });
-            result.end(file.buffer);
+            } catch (uploadError) {
+                console.error("Cloudinary upload error:", uploadError);
+                throw new Error("Failed to upload image to Cloudinary.");
+            }
         }));
 
-        const newUser = new User({name, socialHandle, images: imageUrls});
+        // Ensure name and socialHandle exist
+        if (!name || !socialHandle) {
+            return res.status(400).json({ message: "Name and social handle are required." });
+        }
+
+        // Save user to MongoDB
+        const newUser = new User({
+            name,
+            socialHandle,
+            images: imageUrls
+        });
+
         await newUser.save();
 
-        res.status(201).json({message: "User submission successfull"});
+        res.status(201).json({
+            message: "User submission successful",
+            images: imageUrls
+        });
 
-
-    }catch(err){
-        res.status(500).json({message: err.message});
-    
+    } catch (err) {
+        console.error("Server error:", err);
+        res.status(500).json({ message: err.message });
     }
 };
+
 
 const getSubmissions = async (req, res)=>{
     try{
