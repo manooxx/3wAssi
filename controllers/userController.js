@@ -9,11 +9,7 @@ cloudinary.config({
 });
 
 
-// cloudinary.config({
-//     cloud_name:"detvsglhi",
-//     api_key: 476389823571681,
-//     api_secret:"Bz7qw-SQOSie-TtS-Ev5WmkB8gE",
-// });
+
 const uploadUser = async (req, res) => {
     
     try {
